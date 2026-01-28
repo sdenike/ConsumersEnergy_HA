@@ -1,0 +1,273 @@
+# Example Lovelace Dashboard Configuration
+# Copy sections to your dashboard configuration file
+
+# Full Energy Cost Dashboard View
+views:
+  - title: Energy Costs
+    path: energy-costs
+    icon: mdi:currency-usd
+    cards:
+      # Current Status Card
+      - type: vertical-stack
+        cards:
+          - type: markdown
+            content: |
+              # Energy Cost Tracker
+              Real-time monitoring of electricity usage and costs
+
+          - type: entities
+            title: Current Status
+            show_header_toggle: false
+            entities:
+              - entity: sensor.consumers_energy_total_power
+                name: Current Power
+                icon: mdi:lightning-bolt
+              - entity: sensor.consumers_energy_rate_period
+                name: Rate Period
+                icon: mdi:clock-outline
+              - entity: sensor.consumers_energy_current_rate
+                name: Current Rate
+                icon: mdi:currency-usd
+              - entity: sensor.consumers_energy_cost_rate
+                name: Cost Per Hour
+                icon: mdi:cash-clock
+
+      # Power Gauge
+      - type: gauge
+        entity: sensor.consumers_energy_total_power
+        name: Current Power Usage
+        unit: W
+        min: 0
+        max: 5000
+        needle: true
+        segments:
+          - from: 0
+            color: '#4CAF50'
+          - from: 1500
+            color: '#FFC107'
+          - from: 3000
+            color: '#FF9800'
+          - from: 4000
+            color: '#F44336'
+
+      # Period Summary Cards
+      - type: horizontal-stack
+        cards:
+          - type: statistic
+            entity: sensor.consumers_energy_energy_today
+            name: Today
+            icon: mdi:calendar-today
+            stat_type: change
+          - type: statistic
+            entity: sensor.consumers_energy_cost_today
+            name: Cost Today
+            icon: mdi:currency-usd
+            stat_type: change
+
+      - type: horizontal-stack
+        cards:
+          - type: statistic
+            entity: sensor.consumers_energy_energy_week
+            name: This Week
+            icon: mdi:calendar-week
+            stat_type: change
+          - type: statistic
+            entity: sensor.consumers_energy_cost_week
+            name: Cost This Week
+            icon: mdi:currency-usd
+            stat_type: change
+
+      - type: horizontal-stack
+        cards:
+          - type: statistic
+            entity: sensor.consumers_energy_energy_month
+            name: This Month
+            icon: mdi:calendar-month
+            stat_type: change
+          - type: statistic
+            entity: sensor.consumers_energy_cost_month
+            name: Cost This Month
+            icon: mdi:currency-usd
+            stat_type: change
+
+      # ApexCharts - Power and Cost Today
+      - type: custom:apexcharts-card
+        header:
+          show: true
+          title: Power Usage & Cost Today
+          show_states: true
+        graph_span: 24h
+        span:
+          start: day
+        all_series_config:
+          stroke_width: 2
+        series:
+          - entity: sensor.consumers_energy_total_power
+            name: Power
+            type: line
+            yaxis_id: power
+            color: '#2196F3'
+            group_by:
+              func: avg
+              duration: 5min
+          - entity: sensor.consumers_energy_cost_today
+            name: Cost
+            type: line
+            yaxis_id: cost
+            color: '#4CAF50'
+        yaxis:
+          - id: power
+            opposite: false
+            decimals: 0
+            apex_config:
+              title:
+                text: Power (W)
+          - id: cost
+            opposite: true
+            decimals: 2
+            apex_config:
+              title:
+                text: Cost ($)
+
+      # ApexCharts - Rate Periods
+      - type: custom:apexcharts-card
+        header:
+          show: true
+          title: Electricity Rate Changes Today
+        graph_span: 24h
+        span:
+          start: day
+        series:
+          - entity: sensor.consumers_energy_current_rate
+            name: Rate
+            stroke_width: 3
+            type: line
+            color: '#FF9800'
+        yaxis:
+          - decimals: 3
+            min: 0
+            apex_config:
+              title:
+                text: Rate ($/kWh)
+
+      # ApexCharts - Weekly Cost Comparison
+      - type: custom:apexcharts-card
+        header:
+          show: true
+          title: Weekly Cost Comparison
+        graph_span: 4w
+        span:
+          start: month
+          offset: -3w
+        series:
+          - entity: sensor.consumers_energy_cost_week
+            name: Weekly Cost
+            type: column
+            color: '#9C27B0'
+            group_by:
+              func: max
+              duration: 1week
+        yaxis:
+          - decimals: 2
+            apex_config:
+              title:
+                text: Cost ($)
+
+      # History Card
+      - type: history-graph
+        title: Power Usage History
+        hours_to_show: 24
+        entities:
+          - entity: sensor.consumers_energy_total_power
+
+      # Energy Distribution Card (requires Energy Dashboard setup)
+      - type: energy-distribution
+        title: Energy Distribution
+        link_dashboard: true
+
+# Compact Mini Dashboard (for mobile or sidebar)
+mini_dashboard:
+  - type: vertical-stack
+    cards:
+      - type: glance
+        title: Energy Quick View
+        show_name: true
+        show_state: true
+        entities:
+          - entity: sensor.consumers_energy_total_power
+            name: Power
+          - entity: sensor.consumers_energy_current_rate
+            name: Rate
+          - entity: sensor.consumers_energy_cost_rate
+            name: $/hr
+
+      - type: entities
+        title: Today's Costs
+        entities:
+          - sensor.consumers_energy_energy_today
+          - sensor.consumers_energy_cost_today
+
+# Single Card Examples for Customization
+
+# Simple Power Display
+simple_power_card:
+  type: sensor
+  entity: sensor.consumers_energy_total_power
+  graph: line
+  name: Current Power
+  icon: mdi:flash
+
+# Rate Period Badge
+rate_badge:
+  type: entity
+  entity: sensor.consumers_energy_rate_period
+  name: Rate Period
+  icon: mdi:clock-time-eight
+
+# Cost Today with Trend
+cost_today_card:
+  type: sensor
+  entity: sensor.consumers_energy_cost_today
+  graph: line
+  hours_to_show: 24
+  name: Cost Today
+  icon: mdi:currency-usd
+
+# Monthly Cost Progress Bar
+monthly_progress:
+  type: custom:bar-card
+  entity: sensor.consumers_energy_cost_month
+  name: Monthly Cost
+  max: 150  # Adjust to your typical monthly budget
+  icon: mdi:cash
+  severity:
+    - color: '#4CAF50'
+      from: 0
+      to: 75
+    - color: '#FFC107'
+      from: 75
+      to: 120
+    - color: '#F44336'
+      from: 120
+      to: 150
+
+# Markdown Info Card
+info_card:
+  type: markdown
+  content: |
+    ## Energy Rate Information
+
+    **Current Period:** {{ states('sensor.consumers_energy_rate_period') }}
+    **Current Rate:** ${{ states('sensor.consumers_energy_current_rate') }}/kWh
+    **Current Power:** {{ states('sensor.consumers_energy_total_power') }} W
+    **Cost Per Hour:** ${{ states('sensor.consumers_energy_cost_rate') }}/hr
+
+    ---
+
+    ### Today's Usage
+    - **Energy:** {{ states('sensor.consumers_energy_energy_today') }} kWh
+    - **Cost:** ${{ states('sensor.consumers_energy_cost_today') }}
+
+    ### This Month
+    - **Energy:** {{ states('sensor.consumers_energy_energy_month') }} kWh
+    - **Cost:** ${{ states('sensor.consumers_energy_cost_month') }}

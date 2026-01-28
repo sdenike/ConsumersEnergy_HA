@@ -1,0 +1,54 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Select Power Sensors",
+        "description": "Select the power sensors (in watts) to monitor. Found {sensor_count} power sensors.",
+        "data": {
+          "power_sensors": "Power Sensors"
+        }
+      },
+      "rate_plan": {
+        "title": "Rate Plan Type",
+        "description": "Choose whether to use a preset Consumers Energy rate plan or configure custom rates. {preset_count} presets available.",
+        "data": {
+          "use_preset": "Use Preset Rate Plan"
+        }
+      },
+      "preset_plan": {
+        "title": "Select Rate Plan",
+        "description": "Choose your Consumers Energy rate plan.",
+        "data": {
+          "rate_plan": "Rate Plan"
+        }
+      },
+      "custom_plan": {
+        "title": "Custom Rate Configuration",
+        "description": "Configure custom electricity rates. Peak hours are 2pm-7pm weekdays.",
+        "data": {
+          "summer_peak_rate": "Summer Peak Rate (Jun-Sep)",
+          "summer_offpeak_rate": "Summer Off-Peak Rate",
+          "winter_rate": "Winter Rate (Oct-May)"
+        }
+      }
+    },
+    "error": {
+      "no_sensors": "Please select at least one power sensor",
+      "invalid_plan": "Invalid rate plan selected"
+    },
+    "abort": {
+      "already_configured": "This integration is already configured"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Update Configuration",
+        "description": "Update power sensors. Rate plan changes require reconfiguration.",
+        "data": {
+          "power_sensors": "Power Sensors"
+        }
+      }
+    }
+  }
+}
