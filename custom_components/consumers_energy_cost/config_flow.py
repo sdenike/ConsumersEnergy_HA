@@ -283,23 +283,23 @@ class ConsumersEnergyOptionsFlow(config_entries.OptionsFlow):
             )
             return self.async_create_entry(title="", data={})
 
+        # Get current sensors
         current_sensors = self.config_entry.data.get(CONF_POWER_SENSORS, [])
-
-        data_schema = vol.Schema(
-            {
-                vol.Required(
-                    CONF_POWER_SENSORS, default=current_sensors
-                ): selector.EntitySelector(
-                    selector.EntitySelectorConfig(
-                        domain=SENSOR_DOMAIN,
-                        device_class="power",
-                        multiple=True,
-                    ),
-                ),
-            }
-        )
 
         return self.async_show_form(
             step_id="init",
-            data_schema=data_schema,
+            data_schema=self.add_suggested_values_to_schema(
+                vol.Schema(
+                    {
+                        vol.Required(CONF_POWER_SENSORS): selector.EntitySelector(
+                            selector.EntitySelectorConfig(
+                                domain=SENSOR_DOMAIN,
+                                device_class="power",
+                                multiple=True,
+                            ),
+                        ),
+                    }
+                ),
+                {CONF_POWER_SENSORS: current_sensors},
+            ),
         )
