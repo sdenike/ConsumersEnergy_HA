@@ -18,13 +18,17 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from .const import (
     CONF_INSTANCE_NAME,
     DOMAIN,
+    SENSOR_COST_HOUR,
     SENSOR_COST_MONTH,
+    SENSOR_COST_PREVIOUS_MONTH,
     SENSOR_COST_RATE,
     SENSOR_COST_TODAY,
     SENSOR_COST_WEEK,
     SENSOR_COST_YEAR,
     SENSOR_CURRENT_RATE,
+    SENSOR_ENERGY_HOUR,
     SENSOR_ENERGY_MONTH,
+    SENSOR_ENERGY_PREVIOUS_MONTH,
     SENSOR_ENERGY_TODAY,
     SENSOR_ENERGY_WEEK,
     SENSOR_ENERGY_YEAR,
@@ -49,6 +53,8 @@ async def async_setup_entry(
         CurrentRateSensor(coordinator, config_entry),
         CostRateSensor(coordinator, config_entry),
         RatePeriodSensor(coordinator, config_entry),
+        EnergyHourSensor(coordinator, config_entry),
+        CostHourSensor(coordinator, config_entry),
         EnergyTodaySensor(coordinator, config_entry),
         CostTodaySensor(coordinator, config_entry),
         EnergyWeekSensor(coordinator, config_entry),
@@ -57,6 +63,8 @@ async def async_setup_entry(
         CostMonthSensor(coordinator, config_entry),
         EnergyYearSensor(coordinator, config_entry),
         CostYearSensor(coordinator, config_entry),
+        EnergyPreviousMonthSensor(coordinator, config_entry),
+        CostPreviousMonthSensor(coordinator, config_entry),
     ]
 
     async_add_entities(entities)
@@ -167,6 +175,42 @@ class RatePeriodSensor(ConsumersEnergySensorBase):
     def native_value(self) -> str | None:
         """Return the state of the sensor."""
         return self.coordinator.data.get("rate_period")
+
+
+class EnergyHourSensor(ConsumersEnergySensorBase):
+    """Sensor for energy consumed in the last hour."""
+
+    def __init__(
+        self, coordinator: EnergyDataUpdateCoordinator, config_entry: ConfigEntry
+    ) -> None:
+        """Initialize the sensor."""
+        super().__init__(coordinator, config_entry, SENSOR_ENERGY_HOUR, "Energy Last Hour")
+        self._attr_device_class = SensorDeviceClass.ENERGY
+        self._attr_state_class = SensorStateClass.TOTAL
+        self._attr_native_unit_of_measurement = UnitOfEnergy.KILO_WATT_HOUR
+
+    @property
+    def native_value(self) -> float | None:
+        """Return the state of the sensor."""
+        return self.coordinator.data.get("energy_hour")
+
+
+class CostHourSensor(ConsumersEnergySensorBase):
+    """Sensor for cost in the last hour."""
+
+    def __init__(
+        self, coordinator: EnergyDataUpdateCoordinator, config_entry: ConfigEntry
+    ) -> None:
+        """Initialize the sensor."""
+        super().__init__(coordinator, config_entry, SENSOR_COST_HOUR, "Cost Last Hour")
+        self._attr_device_class = SensorDeviceClass.MONETARY
+        self._attr_state_class = SensorStateClass.TOTAL
+        self._attr_native_unit_of_measurement = "USD"
+
+    @property
+    def native_value(self) -> float | None:
+        """Return the state of the sensor."""
+        return self.coordinator.data.get("cost_hour")
 
 
 class EnergyTodaySensor(ConsumersEnergySensorBase):
@@ -311,3 +355,39 @@ class CostYearSensor(ConsumersEnergySensorBase):
     def native_value(self) -> float | None:
         """Return the state of the sensor."""
         return self.coordinator.data.get("cost_year")
+
+
+class EnergyPreviousMonthSensor(ConsumersEnergySensorBase):
+    """Sensor for energy consumed in the previous month."""
+
+    def __init__(
+        self, coordinator: EnergyDataUpdateCoordinator, config_entry: ConfigEntry
+    ) -> None:
+        """Initialize the sensor."""
+        super().__init__(coordinator, config_entry, SENSOR_ENERGY_PREVIOUS_MONTH, "Energy Previous Month")
+        self._attr_device_class = SensorDeviceClass.ENERGY
+        self._attr_state_class = SensorStateClass.TOTAL
+        self._attr_native_unit_of_measurement = UnitOfEnergy.KILO_WATT_HOUR
+
+    @property
+    def native_value(self) -> float | None:
+        """Return the state of the sensor."""
+        return self.coordinator.data.get("energy_previous_month")
+
+
+class CostPreviousMonthSensor(ConsumersEnergySensorBase):
+    """Sensor for cost in the previous month."""
+
+    def __init__(
+        self, coordinator: EnergyDataUpdateCoordinator, config_entry: ConfigEntry
+    ) -> None:
+        """Initialize the sensor."""
+        super().__init__(coordinator, config_entry, SENSOR_COST_PREVIOUS_MONTH, "Cost Previous Month")
+        self._attr_device_class = SensorDeviceClass.MONETARY
+        self._attr_state_class = SensorStateClass.TOTAL
+        self._attr_native_unit_of_measurement = "USD"
+
+    @property
+    def native_value(self) -> float | None:
+        """Return the state of the sensor."""
+        return self.coordinator.data.get("cost_previous_month")

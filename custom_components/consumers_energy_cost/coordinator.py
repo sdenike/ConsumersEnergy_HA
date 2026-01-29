@@ -63,6 +63,15 @@ class EnergyDataUpdateCoordinator(DataUpdateCoordinator):
             month=1, day=1, hour=0, minute=0, second=0, microsecond=0
         )
 
+        # Hourly tracking (rolling 1-hour window)
+        self._hourly_energy = 0.0
+        self._hourly_cost = 0.0
+        self._hourly_start = dt_util.now().replace(minute=0, second=0, microsecond=0)
+
+        # Previous month tracking
+        self._previous_month_energy = 0.0
+        self._previous_month_cost = 0.0
+
     async def _async_update_data(self) -> dict[str, Any]:
         """Fetch data from power sensors and calculate costs.
 
@@ -122,6 +131,9 @@ class EnergyDataUpdateCoordinator(DataUpdateCoordinator):
             self._yearly_energy += energy_delta
             self._yearly_cost += cost_delta
 
+            self._hourly_energy += energy_delta
+            self._hourly_cost += cost_delta
+
             # Calculate current cost rate ($/hour)
             cost_rate = (total_power / 1000.0 * current_rate) if total_power else 0.0
 
@@ -138,6 +150,10 @@ class EnergyDataUpdateCoordinator(DataUpdateCoordinator):
                 "cost_month": self._monthly_cost,
                 "energy_year": self._yearly_energy,
                 "cost_year": self._yearly_cost,
+                "energy_hour": self._hourly_energy,
+                "cost_hour": self._hourly_cost,
+                "energy_previous_month": self._previous_month_energy,
+                "cost_previous_month": self._previous_month_cost,
                 "last_update": current_time.isoformat(),
             }
 
@@ -187,6 +203,18 @@ class EnergyDataUpdateCoordinator(DataUpdateCoordinator):
         Args:
             current_time: Current datetime
         """
+        # Check hourly boundary (rolling 1-hour window)
+        hour_ago = current_time - timedelta(hours=1)
+        if current_time.replace(minute=0, second=0, microsecond=0) > self._hourly_start.replace(minute=0, second=0, microsecond=0):
+            _LOGGER.debug(
+                "Hourly period reset - Energy: %.3f kWh, Cost: $%.2f",
+                self._hourly_energy,
+                self._hourly_cost,
+            )
+            self._hourly_energy = 0.0
+            self._hourly_cost = 0.0
+            self._hourly_start = current_time.replace(minute=0, second=0, microsecond=0)
+
         # Check daily boundary
         day_start = dt_util.start_of_local_day()
         if day_start > self._daily_start:
@@ -221,6 +249,10 @@ class EnergyDataUpdateCoordinator(DataUpdateCoordinator):
                 self._monthly_energy,
                 self._monthly_cost,
             )
+            # Store previous month's data before resetting
+            self._previous_month_energy = self._monthly_energy
+            self._previous_month_cost = self._monthly_cost
+
             self._monthly_energy = 0.0
             self._monthly_cost = 0.0
             self._monthly_start = month_start

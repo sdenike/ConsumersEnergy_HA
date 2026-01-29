@@ -24,6 +24,8 @@ SENSOR_TOTAL_POWER: Final = "total_power"
 SENSOR_CURRENT_RATE: Final = "current_rate"
 SENSOR_COST_RATE: Final = "cost_rate"
 SENSOR_RATE_PERIOD: Final = "rate_period"
+SENSOR_ENERGY_HOUR: Final = "energy_hour"
+SENSOR_COST_HOUR: Final = "cost_hour"
 SENSOR_ENERGY_TODAY: Final = "energy_today"
 SENSOR_COST_TODAY: Final = "cost_today"
 SENSOR_ENERGY_WEEK: Final = "energy_week"
@@ -32,6 +34,8 @@ SENSOR_ENERGY_MONTH: Final = "energy_month"
 SENSOR_COST_MONTH: Final = "cost_month"
 SENSOR_ENERGY_YEAR: Final = "energy_year"
 SENSOR_COST_YEAR: Final = "cost_year"
+SENSOR_ENERGY_PREVIOUS_MONTH: Final = "energy_previous_month"
+SENSOR_COST_PREVIOUS_MONTH: Final = "cost_previous_month"
 
 # Rate plan templates for Consumers Energy
 RATE_PLAN_TEMPLATES = {
