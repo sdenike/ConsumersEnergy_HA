@@ -275,17 +275,31 @@ class ConsumersEnergyOptionsFlow(config_entries.OptionsFlow):
         self, user_input: dict[str, Any] | None = None
     ) -> config_entries.FlowResult:
         """Manage the options."""
-        if user_input is not None:
-            # Update config entry data
-            self.hass.config_entries.async_update_entry(
-                self.config_entry,
-                data={**self.config_entry.data, **user_input},
-            )
-            return self.async_create_entry(title="", data={})
+        errors: dict[str, str] = {}
 
-        # Get current sensors
+        if user_input is not None:
+            power_sensors = user_input.get(CONF_POWER_SENSORS, [])
+
+            if not power_sensors:
+                errors[CONF_POWER_SENSORS] = "no_sensors"
+            else:
+                # Update config entry data
+                self.hass.config_entries.async_update_entry(
+                    self.config_entry,
+                    data={**self.config_entry.data, **user_input},
+                )
+                # Trigger reload of the integration
+                await self.hass.config_entries.async_reload(self.config_entry.entry_id)
+                return self.async_create_entry(title="", data={})
+
+        # Get current sensors from config entry
         current_sensors = self.config_entry.data.get(CONF_POWER_SENSORS, [])
 
+        # Ensure current_sensors is a list
+        if not isinstance(current_sensors, list):
+            current_sensors = []
+
+        # Build the form with current values pre-selected
         return self.async_show_form(
             step_id="init",
             data_schema=self.add_suggested_values_to_schema(
@@ -302,4 +316,8 @@ class ConsumersEnergyOptionsFlow(config_entries.OptionsFlow):
                 ),
                 {CONF_POWER_SENSORS: current_sensors},
             ),
+            errors=errors,
+            description_placeholders={
+                "sensor_count": str(len(current_sensors)),
+            },
         )

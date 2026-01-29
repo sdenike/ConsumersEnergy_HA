@@ -44,11 +44,14 @@
     "step": {
       "init": {
         "title": "Update Configuration",
-        "description": "Update power sensors. Rate plan changes require reconfiguration.",
+        "description": "Update power sensors. Currently tracking {sensor_count} sensors. Rate plan changes require reconfiguration.",
         "data": {
           "power_sensors": "Power Sensors"
         }
       }
+    },
+    "error": {
+      "no_sensors": "Please select at least one power sensor"
     }
   }
 }

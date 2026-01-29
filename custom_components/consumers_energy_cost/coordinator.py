@@ -158,7 +158,7 @@ class EnergyDataUpdateCoordinator(DataUpdateCoordinator):
             state = self.hass.states.get(entity_id)
 
             if state is None:
-                _LOGGER.warning("Power sensor %s not found", entity_id)
+                _LOGGER.debug("Power sensor %s not found (may still be loading)", entity_id)
                 continue
 
             if state.state in ("unavailable", "unknown"):
@@ -176,7 +176,7 @@ class EnergyDataUpdateCoordinator(DataUpdateCoordinator):
                 continue
 
         if valid_sensors == 0:
-            _LOGGER.warning("No valid power sensors available")
+            _LOGGER.debug("No valid power sensors available yet (may still be loading)")
             return None
 
         return total
