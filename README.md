@@ -323,8 +323,8 @@ You can install the integration multiple times to track different rate scenarios
 ## Support
 
 For issues, feature requests, or questions:
-- GitHub Issues: [Report a bug or request a feature]
-- Home Assistant Community: [Post in the forums]
+- GitHub Issues: [Report a bug or request a feature](https://github.com/sdenike/ConsumersEnergy_HA/issues)
+<!-- - Home Assistant Community: [Post in the forums] -->
 
 ## Credits
 

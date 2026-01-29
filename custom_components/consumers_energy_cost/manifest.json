@@ -1,12 +1,12 @@
 {
   "domain": "consumers_energy_cost",
   "name": "Consumers Energy Cost Tracker",
-  "codeowners": ["@shelby"],
+  "codeowners": ["@sdenike"],
   "config_flow": true,
   "dependencies": [],
-  "documentation": "https://github.com/shelby/consumers_energy_cost",
+  "documentation": "https://github.com/sdenike/ConsumersEnergy_HA",
   "integration_type": "service",
   "iot_class": "calculated",
   "requirements": [],
-  "version": "1.0.0"
+  "version": "1.0.1"
 }
