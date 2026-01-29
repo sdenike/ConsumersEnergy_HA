@@ -24,6 +24,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         hass,
         power_sensors,
         rate_config,
+        entry.entry_id,
     )
 
     # Fetch initial data

@@ -4,6 +4,7 @@ import logging
 from typing import Any
 
 from homeassistant.core import HomeAssistant, State
+from homeassistant.helpers.storage import Store
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.util import dt as dt_util
 
@@ -11,6 +12,9 @@ from .const import DOMAIN, UPDATE_INTERVAL_SECONDS
 from .rate_calculator import RateCalculator
 
 _LOGGER = logging.getLogger(__name__)
+
+STORAGE_VERSION = 1
+STORAGE_KEY = "consumers_energy_cost_state"
 
 
 class EnergyDataUpdateCoordinator(DataUpdateCoordinator):
@@ -21,6 +25,7 @@ class EnergyDataUpdateCoordinator(DataUpdateCoordinator):
         hass: HomeAssistant,
         power_sensors: list[str],
         rate_config: dict,
+        entry_id: str,
     ) -> None:
         """Initialize the coordinator.
 
@@ -28,6 +33,7 @@ class EnergyDataUpdateCoordinator(DataUpdateCoordinator):
             hass: Home Assistant instance
             power_sensors: List of power sensor entity IDs
             rate_config: Rate configuration dictionary
+            entry_id: Config entry ID for unique storage
         """
         super().__init__(
             hass,
@@ -37,12 +43,20 @@ class EnergyDataUpdateCoordinator(DataUpdateCoordinator):
         )
         self.power_sensors = power_sensors
         self.rate_calculator = RateCalculator(rate_config)
+        self._entry_id = entry_id
+
+        # Create persistent storage
+        self._store = Store(
+            hass,
+            STORAGE_VERSION,
+            f"{STORAGE_KEY}_{entry_id}",
+        )
 
         # Previous state for energy calculation
         self._previous_power: float | None = None
         self._previous_timestamp: datetime | None = None
 
-        # Period accumulators
+        # Period accumulators - will be initialized from storage or defaults
         self._daily_energy = 0.0
         self._daily_cost = 0.0
         self._daily_start = dt_util.start_of_local_day()
@@ -72,6 +86,9 @@ class EnergyDataUpdateCoordinator(DataUpdateCoordinator):
         self._previous_month_energy = 0.0
         self._previous_month_cost = 0.0
 
+        # State restoration flag
+        self._state_restored = False
+
     async def _async_update_data(self) -> dict[str, Any]:
         """Fetch data from power sensors and calculate costs.
 
@@ -79,6 +96,11 @@ class EnergyDataUpdateCoordinator(DataUpdateCoordinator):
             Dictionary with current state data
         """
         try:
+            # Restore state on first update
+            if not self._state_restored:
+                await self._restore_state()
+                self._state_restored = True
+
             current_time = dt_util.now()
 
             # Get total power from all sensors
@@ -136,6 +158,9 @@ class EnergyDataUpdateCoordinator(DataUpdateCoordinator):
 
             # Calculate current cost rate ($/hour)
             cost_rate = (total_power / 1000.0 * current_rate) if total_power else 0.0
+
+            # Save state for persistence across restarts
+            await self._save_state()
 
             return {
                 "total_power": total_power,
@@ -281,3 +306,110 @@ class EnergyDataUpdateCoordinator(DataUpdateCoordinator):
         days_since_monday = now.weekday()
         week_start = now - timedelta(days=days_since_monday)
         return week_start.replace(hour=0, minute=0, second=0, microsecond=0)
+
+    async def _save_state(self) -> None:
+        """Save current accumulator state to persistent storage."""
+        try:
+            state_data = {
+                "daily_energy": self._daily_energy,
+                "daily_cost": self._daily_cost,
+                "daily_start": self._daily_start.isoformat(),
+                "weekly_energy": self._weekly_energy,
+                "weekly_cost": self._weekly_cost,
+                "weekly_start": self._weekly_start.isoformat(),
+                "monthly_energy": self._monthly_energy,
+                "monthly_cost": self._monthly_cost,
+                "monthly_start": self._monthly_start.isoformat(),
+                "yearly_energy": self._yearly_energy,
+                "yearly_cost": self._yearly_cost,
+                "yearly_start": self._yearly_start.isoformat(),
+                "hourly_energy": self._hourly_energy,
+                "hourly_cost": self._hourly_cost,
+                "hourly_start": self._hourly_start.isoformat(),
+                "previous_month_energy": self._previous_month_energy,
+                "previous_month_cost": self._previous_month_cost,
+                "previous_power": self._previous_power,
+                "previous_timestamp": self._previous_timestamp.isoformat() if self._previous_timestamp else None,
+            }
+            await self._store.async_save(state_data)
+        except Exception as err:
+            _LOGGER.error("Error saving state: %s", err)
+
+    async def _restore_state(self) -> None:
+        """Restore accumulator state from persistent storage."""
+        try:
+            state_data = await self._store.async_load()
+
+            if state_data is None:
+                _LOGGER.info("No saved state found, starting fresh")
+                return
+
+            current_time = dt_util.now()
+
+            # Restore daily state if still valid
+            daily_start = dt_util.parse_datetime(state_data.get("daily_start", ""))
+            if daily_start and dt_util.start_of_local_day() == daily_start.replace(tzinfo=dt_util.DEFAULT_TIME_ZONE):
+                self._daily_energy = state_data.get("daily_energy", 0.0)
+                self._daily_cost = state_data.get("daily_cost", 0.0)
+                self._daily_start = daily_start
+                _LOGGER.info("Restored daily state: %.3f kWh, $%.2f", self._daily_energy, self._daily_cost)
+            else:
+                _LOGGER.info("Daily period expired, starting fresh")
+
+            # Restore weekly state if still valid
+            weekly_start = dt_util.parse_datetime(state_data.get("weekly_start", ""))
+            if weekly_start and self._get_week_start() == weekly_start.replace(tzinfo=dt_util.DEFAULT_TIME_ZONE):
+                self._weekly_energy = state_data.get("weekly_energy", 0.0)
+                self._weekly_cost = state_data.get("weekly_cost", 0.0)
+                self._weekly_start = weekly_start
+                _LOGGER.info("Restored weekly state: %.3f kWh, $%.2f", self._weekly_energy, self._weekly_cost)
+            else:
+                _LOGGER.info("Weekly period expired, starting fresh")
+
+            # Restore monthly state if still valid
+            monthly_start = dt_util.parse_datetime(state_data.get("monthly_start", ""))
+            current_month_start = current_time.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+            if monthly_start and current_month_start == monthly_start.replace(tzinfo=dt_util.DEFAULT_TIME_ZONE):
+                self._monthly_energy = state_data.get("monthly_energy", 0.0)
+                self._monthly_cost = state_data.get("monthly_cost", 0.0)
+                self._monthly_start = monthly_start
+                _LOGGER.info("Restored monthly state: %.3f kWh, $%.2f", self._monthly_energy, self._monthly_cost)
+            else:
+                _LOGGER.info("Monthly period expired, starting fresh")
+
+            # Restore yearly state if still valid
+            yearly_start = dt_util.parse_datetime(state_data.get("yearly_start", ""))
+            current_year_start = current_time.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
+            if yearly_start and current_year_start == yearly_start.replace(tzinfo=dt_util.DEFAULT_TIME_ZONE):
+                self._yearly_energy = state_data.get("yearly_energy", 0.0)
+                self._yearly_cost = state_data.get("yearly_cost", 0.0)
+                self._yearly_start = yearly_start
+                _LOGGER.info("Restored yearly state: %.3f kWh, $%.2f", self._yearly_energy, self._yearly_cost)
+            else:
+                _LOGGER.info("Yearly period expired, starting fresh")
+
+            # Restore hourly state if still valid
+            hourly_start = dt_util.parse_datetime(state_data.get("hourly_start", ""))
+            current_hour_start = current_time.replace(minute=0, second=0, microsecond=0)
+            if hourly_start and current_hour_start == hourly_start.replace(tzinfo=dt_util.DEFAULT_TIME_ZONE):
+                self._hourly_energy = state_data.get("hourly_energy", 0.0)
+                self._hourly_cost = state_data.get("hourly_cost", 0.0)
+                self._hourly_start = hourly_start
+                _LOGGER.debug("Restored hourly state: %.3f kWh, $%.2f", self._hourly_energy, self._hourly_cost)
+            else:
+                _LOGGER.debug("Hourly period expired, starting fresh")
+
+            # Always restore previous month
+            self._previous_month_energy = state_data.get("previous_month_energy", 0.0)
+            self._previous_month_cost = state_data.get("previous_month_cost", 0.0)
+            if self._previous_month_energy > 0 or self._previous_month_cost > 0:
+                _LOGGER.info("Restored previous month: %.3f kWh, $%.2f", self._previous_month_energy, self._previous_month_cost)
+
+            # Restore previous power reading for energy calculation
+            self._previous_power = state_data.get("previous_power")
+            previous_timestamp_str = state_data.get("previous_timestamp")
+            if previous_timestamp_str:
+                self._previous_timestamp = dt_util.parse_datetime(previous_timestamp_str)
+
+        except Exception as err:
+            _LOGGER.error("Error restoring state: %s", err)
