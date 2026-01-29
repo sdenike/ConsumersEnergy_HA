@@ -261,7 +261,7 @@ class ConsumersEnergyConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         config_entry: config_entries.ConfigEntry,
     ) -> ConsumersEnergyOptionsFlow:
         """Get the options flow for this handler."""
-        return ConsumersEnergyOptionsFlow(config_entry)
+        return ConsumersEnergyOptionsFlow()
 
 
 class ConsumersEnergyOptionsFlow(config_entries.OptionsFlow):
