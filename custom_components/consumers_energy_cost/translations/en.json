@@ -2,9 +2,10 @@
   "config": {
     "step": {
       "user": {
-        "title": "Select Power Sensors",
-        "description": "Select the power sensors (in watts) to monitor. Found {sensor_count} power sensors.",
+        "title": "Configure Instance",
+        "description": "Name this instance and select power sensors to monitor. Found {sensor_count} power sensors. You can create multiple instances to track different groups separately.",
         "data": {
+          "instance_name": "Instance Name",
           "power_sensors": "Power Sensors"
         }
       },
@@ -33,6 +34,7 @@
       }
     },
     "error": {
+      "no_name": "Please provide a name for this instance",
       "no_sensors": "Please select at least one power sensor",
       "invalid_plan": "Invalid rate plan selected"
     },

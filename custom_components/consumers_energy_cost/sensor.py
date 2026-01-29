@@ -16,6 +16,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import (
+    CONF_INSTANCE_NAME,
     DOMAIN,
     SENSOR_COST_MONTH,
     SENSOR_COST_RATE,
@@ -80,8 +81,9 @@ class ConsumersEnergySensorBase(CoordinatorEntity, SensorEntity):
             name: Sensor name
         """
         super().__init__(coordinator)
+        instance_name = config_entry.data.get(CONF_INSTANCE_NAME, "Consumers Energy")
         self._attr_unique_id = f"{config_entry.entry_id}_{sensor_type}"
-        self._attr_name = f"Consumers Energy {name}"
+        self._attr_name = f"{instance_name} {name}"
         self._attr_has_entity_name = False
 
     @property

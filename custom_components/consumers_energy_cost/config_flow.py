@@ -13,6 +13,7 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import selector
 
 from .const import (
+    CONF_INSTANCE_NAME,
     CONF_POWER_SENSORS,
     CONF_RATE_CONFIG,
     CONF_RATE_PLAN,
@@ -35,6 +36,7 @@ class ConsumersEnergyConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     def __init__(self) -> None:
         """Initialize the config flow."""
+        self._instance_name: str = ""
         self._power_sensors: list[str] = []
         self._rate_plan: str | None = None
         self._rate_config: dict | None = None
@@ -42,15 +44,19 @@ class ConsumersEnergyConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
     ) -> config_entries.FlowResult:
-        """Handle the initial step - sensor selection."""
+        """Handle the initial step - instance name and sensor selection."""
         errors: dict[str, str] = {}
 
         if user_input is not None:
+            instance_name = user_input.get(CONF_INSTANCE_NAME, "").strip()
             power_sensors = user_input.get(CONF_POWER_SENSORS, [])
 
-            if not power_sensors:
+            if not instance_name:
+                errors[CONF_INSTANCE_NAME] = "no_name"
+            elif not power_sensors:
                 errors[CONF_POWER_SENSORS] = "no_sensors"
             else:
+                self._instance_name = instance_name
                 self._power_sensors = power_sensors
                 return await self.async_step_rate_plan()
 
@@ -63,6 +69,11 @@ class ConsumersEnergyConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         data_schema = vol.Schema(
             {
+                vol.Required(CONF_INSTANCE_NAME, default="All Sensors"): selector.TextSelector(
+                    selector.TextSelectorConfig(
+                        type=selector.TextSelectorType.TEXT,
+                    ),
+                ),
                 vol.Required(CONF_POWER_SENSORS): selector.EntitySelector(
                     selector.EntitySelectorConfig(
                         domain=SENSOR_DOMAIN,
@@ -125,8 +136,9 @@ class ConsumersEnergyConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 self._rate_config = RATE_PLAN_TEMPLATES[rate_plan]["config"]
 
                 return self.async_create_entry(
-                    title=RATE_PLAN_TEMPLATES[rate_plan]["name"],
+                    title=self._instance_name,
                     data={
+                        CONF_INSTANCE_NAME: self._instance_name,
                         CONF_POWER_SENSORS: self._power_sensors,
                         CONF_RATE_PLAN: self._rate_plan,
                         CONF_RATE_CONFIG: self._rate_config,
@@ -207,8 +219,9 @@ class ConsumersEnergyConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             }
 
             return self.async_create_entry(
-                title="Custom Rate Plan",
+                title=self._instance_name,
                 data={
+                    CONF_INSTANCE_NAME: self._instance_name,
                     CONF_POWER_SENSORS: self._power_sensors,
                     CONF_RATE_PLAN: self._rate_plan,
                     CONF_RATE_CONFIG: self._rate_config,

@@ -8,6 +8,7 @@ CONF_POWER_SENSORS: Final = "power_sensors"
 CONF_RATE_PLAN: Final = "rate_plan"
 CONF_RATE_CONFIG: Final = "rate_config"
 CONF_USE_PRESET: Final = "use_preset"
+CONF_INSTANCE_NAME: Final = "instance_name"
 
 # Rate plan presets
 RATE_PLAN_SUMMER_TOU: Final = "summer_tou_1001"
