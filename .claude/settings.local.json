@@ -10,7 +10,18 @@
       "Bash(chmod:*)",
       "Bash(unzip:*)",
       "Bash(ls:*)",
-      "Bash(./setup_repository.sh:*)"
+      "Bash(./setup_repository.sh:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push)",
+      "Bash(git tag:*)",
+      "Bash(git push:*)",
+      "Bash(curl:*)",
+      "Bash(git restore:*)",
+      "Bash(convert:*)",
+      "Bash(magick:*)",
+      "Bash(gh release create:*)",
+      "Bash(file:*)"
     ]
   }
 }

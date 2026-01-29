@@ -280,10 +280,49 @@ class ConsumersEnergyConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 class ConsumersEnergyOptionsFlow(config_entries.OptionsFlow):
     """Handle options flow for Consumers Energy Cost Tracker."""
 
+    def __init__(self) -> None:
+        """Initialize the options flow."""
+        self._update_type: str | None = None
+
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
     ) -> config_entries.FlowResult:
-        """Manage the options."""
+        """Manage the options - choose what to update."""
+        if user_input is not None:
+            self._update_type = user_input.get("update_type")
+
+            if self._update_type == "sensors":
+                return await self.async_step_update_sensors()
+            elif self._update_type == "rates":
+                return await self.async_step_update_rates()
+
+        return self.async_show_form(
+            step_id="init",
+            data_schema=vol.Schema(
+                {
+                    vol.Required("update_type"): selector.SelectSelector(
+                        selector.SelectSelectorConfig(
+                            options=[
+                                selector.SelectOptionDict(
+                                    value="sensors",
+                                    label="Update Power Sensors"
+                                ),
+                                selector.SelectOptionDict(
+                                    value="rates",
+                                    label="Update Rate Plan / Custom Rates"
+                                ),
+                            ],
+                            mode=selector.SelectSelectorMode.LIST,
+                        ),
+                    ),
+                }
+            ),
+        )
+
+    async def async_step_update_sensors(
+        self, user_input: dict[str, Any] | None = None
+    ) -> config_entries.FlowResult:
+        """Update power sensors."""
         errors: dict[str, str] = {}
 
         if user_input is not None:
@@ -295,7 +334,7 @@ class ConsumersEnergyOptionsFlow(config_entries.OptionsFlow):
                 # Update config entry data
                 self.hass.config_entries.async_update_entry(
                     self.config_entry,
-                    data={**self.config_entry.data, **user_input},
+                    data={**self.config_entry.data, CONF_POWER_SENSORS: power_sensors},
                 )
                 # Trigger reload of the integration
                 await self.hass.config_entries.async_reload(self.config_entry.entry_id)
@@ -310,7 +349,7 @@ class ConsumersEnergyOptionsFlow(config_entries.OptionsFlow):
 
         # Build the form with current values pre-selected
         return self.async_show_form(
-            step_id="init",
+            step_id="update_sensors",
             data_schema=self.add_suggested_values_to_schema(
                 vol.Schema(
                     {
@@ -329,4 +368,171 @@ class ConsumersEnergyOptionsFlow(config_entries.OptionsFlow):
             description_placeholders={
                 "sensor_count": str(len(current_sensors)),
             },
+        )
+
+    async def async_step_update_rates(
+        self, user_input: dict[str, Any] | None = None
+    ) -> config_entries.FlowResult:
+        """Update rate plan."""
+        errors: dict[str, str] = {}
+
+        if user_input is not None:
+            rate_plan = user_input.get(CONF_RATE_PLAN)
+
+            if rate_plan == RATE_PLAN_CUSTOM:
+                # Go to custom rate entry
+                return await self.async_step_custom_rates()
+            elif rate_plan in RATE_PLAN_TEMPLATES:
+                # Update with preset rates
+                rate_config = RATE_PLAN_TEMPLATES[rate_plan]["config"]
+
+                self.hass.config_entries.async_update_entry(
+                    self.config_entry,
+                    data={
+                        **self.config_entry.data,
+                        CONF_RATE_PLAN: rate_plan,
+                        CONF_RATE_CONFIG: rate_config,
+                    },
+                )
+                await self.hass.config_entries.async_reload(self.config_entry.entry_id)
+                return self.async_create_entry(title="", data={})
+            else:
+                errors[CONF_RATE_PLAN] = "invalid_plan"
+
+        # Get current rate plan
+        current_rate_plan = self.config_entry.data.get(CONF_RATE_PLAN, RATE_PLAN_SUMMER_TOU)
+
+        return self.async_show_form(
+            step_id="update_rates",
+            data_schema=self.add_suggested_values_to_schema(
+                vol.Schema(
+                    {
+                        vol.Required(CONF_RATE_PLAN): selector.SelectSelector(
+                            selector.SelectSelectorConfig(
+                                options=[
+                                    selector.SelectOptionDict(
+                                        value=plan_id, label=template["name"]
+                                    )
+                                    for plan_id, template in RATE_PLAN_TEMPLATES.items()
+                                ] + [
+                                    selector.SelectOptionDict(
+                                        value=RATE_PLAN_CUSTOM, label="Custom Rates"
+                                    )
+                                ],
+                                mode=selector.SelectSelectorMode.DROPDOWN,
+                            ),
+                        ),
+                    }
+                ),
+                {CONF_RATE_PLAN: current_rate_plan},
+            ),
+            errors=errors,
+        )
+
+    async def async_step_custom_rates(
+        self, user_input: dict[str, Any] | None = None
+    ) -> config_entries.FlowResult:
+        """Update custom rates."""
+        if user_input is not None:
+            summer_peak_rate = user_input.get("summer_peak_rate", 0.20)
+            summer_offpeak_rate = user_input.get("summer_offpeak_rate", 0.15)
+            winter_rate = user_input.get("winter_rate", 0.16)
+
+            rate_config = {
+                "summer": {
+                    "months": [6, 7, 8, 9],
+                    "weekday": {
+                        "periods": [
+                            {
+                                "name": "Peak",
+                                "start": "14:00",
+                                "end": "19:00",
+                                "rate": summer_peak_rate,
+                            }
+                        ],
+                        "default_rate": summer_offpeak_rate,
+                        "default_name": "Off-Peak",
+                    },
+                    "weekend": {
+                        "default_rate": summer_offpeak_rate,
+                        "default_name": "Off-Peak",
+                    },
+                },
+                "winter": {
+                    "months": [10, 11, 12, 1, 2, 3, 4, 5],
+                    "default_rate": winter_rate,
+                    "default_name": "Standard",
+                },
+            }
+
+            self.hass.config_entries.async_update_entry(
+                self.config_entry,
+                data={
+                    **self.config_entry.data,
+                    CONF_RATE_PLAN: RATE_PLAN_CUSTOM,
+                    CONF_RATE_CONFIG: rate_config,
+                },
+            )
+            await self.hass.config_entries.async_reload(self.config_entry.entry_id)
+            return self.async_create_entry(title="", data={})
+
+        # Get current custom rates if they exist
+        current_config = self.config_entry.data.get(CONF_RATE_CONFIG, {})
+        summer_config = current_config.get("summer", {})
+        winter_config = current_config.get("winter", {})
+
+        # Extract current values
+        current_summer_peak = 0.20
+        current_summer_offpeak = 0.15
+        current_winter = 0.16
+
+        if "weekday" in summer_config:
+            weekday = summer_config["weekday"]
+            if "periods" in weekday and len(weekday["periods"]) > 0:
+                current_summer_peak = weekday["periods"][0].get("rate", 0.20)
+            current_summer_offpeak = weekday.get("default_rate", 0.15)
+
+        if "default_rate" in winter_config:
+            current_winter = winter_config["default_rate"]
+
+        return self.async_show_form(
+            step_id="custom_rates",
+            data_schema=self.add_suggested_values_to_schema(
+                vol.Schema(
+                    {
+                        vol.Required("summer_peak_rate"): selector.NumberSelector(
+                            selector.NumberSelectorConfig(
+                                min=0.0,
+                                max=1.0,
+                                step=0.001,
+                                mode=selector.NumberSelectorMode.BOX,
+                                unit_of_measurement="$/kWh",
+                            ),
+                        ),
+                        vol.Required("summer_offpeak_rate"): selector.NumberSelector(
+                            selector.NumberSelectorConfig(
+                                min=0.0,
+                                max=1.0,
+                                step=0.001,
+                                mode=selector.NumberSelectorMode.BOX,
+                                unit_of_measurement="$/kWh",
+                            ),
+                        ),
+                        vol.Required("winter_rate"): selector.NumberSelector(
+                            selector.NumberSelectorConfig(
+                                min=0.0,
+                                max=1.0,
+                                step=0.001,
+                                mode=selector.NumberSelectorMode.BOX,
+                                unit_of_measurement="$/kWh",
+                            ),
+                        ),
+                    }
+                ),
+                {
+                    "summer_peak_rate": current_summer_peak,
+                    "summer_offpeak_rate": current_summer_offpeak,
+                    "winter_rate": current_winter,
+                },
+            ),
         )
